@@ -1,7 +1,8 @@
 # Použití
 
 ~~~bash
-git clone git@github.com:josef-hak/ai-config.git
-cp ./ai-config/claude/CLAUDE.md ~/.claude/CLAUDE.md
-cp ./ai-config/claude/settings.json ~/.claude/settings.json
+rm -rf ./ai-config-wc
+git clone https://github.com/josef-hak/ai-config.git ./ai-config-wc
+cp ./ai-config-wc/claude/CLAUDE.md ~/.claude/CLAUDE.md
+cp ./ai-config-wc/claude/settings.json ~/.claude/settings.json
 ~~~
