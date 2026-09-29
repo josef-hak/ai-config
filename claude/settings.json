@@ -19,6 +19,7 @@
       "Bash(git switch*)",
       "Bash(git add*)",
       "Bash(git commit*)",
+      "Bash(git push*)",
       "Bash(git rm*)",
       "Bash(git mv*)",
       "Bash(git restore*)",
@@ -70,7 +71,6 @@
       "Bash(wget *)"
     ],
     "deny": [
-      "Bash(git push*)",
       "Bash(git reset --hard*)",
       "Bash(rm -rf*)",
       "Bash(kubectl delete*)",
