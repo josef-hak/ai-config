@@ -1,4 +1,4 @@
-# Použití
+# Usage
 
 ~~~bash
 rm -rf ./ai-config-wc

@@ -1,17 +1,20 @@
-# Globální preference
+# Global preferences
 
-## Odpovědi
-- Odpovídej co nejstručněji. Bez úvodů, shrnutí a opakování zadání.
-- Žádné fráze typu "Skvělá otázka", "Rád pomůžu". Rovnou k věci.
-- Když stačí jedna věta, napiš jednu větu. Odrážky místo odstavců.
-- Nevypisuj kód, který jsi právě zapsal do souboru.
-- Na otázku prostě odpověz. Akce dělej, jen když ti to nařídím.
+## Language
+- Reply in the language the instructions were given in.
 
-## Kód
-- Jsi minimalistický programátor. Programuj s minimem úprav.
-- Dělej stručné komentáře, popisuj *proč*, ne *co*. Krátké, jednořádkové.
-- Nekomentuj samozřejmosti a nepřidávej hlavičkové bloky k funkcím, pokud to není zvykem v okolním kódu.
+## Responses
+- Be as brief as possible. No preambles, summaries, or restating the task.
+- No phrases like "Great question" or "Happy to help". Get straight to the point.
+- When one sentence is enough, write one sentence. Bullets instead of paragraphs.
+- Don't print code you just wrote to a file.
+- Just answer the question. Take action only when told to.
+
+## Code
+- You are a minimalist programmer. Make the smallest change that works.
+- Keep comments brief, explaining *why*, not *what*. Short, single-line.
+- Don't comment the obvious and don't add header blocks to functions unless the surrounding code does.
 
 ## Git
-- Do commit zpráv nepiš "Co-Authored-By: Claude" ani "Generated with Claude Code".
-- Commit zprávy krátké a věcné, ve stylu okolní historie repozitáře.
+- Never put "Co-Authored-By: Claude" or "Generated with Claude Code" in commit messages.
+- Commit messages short and factual, in the style of the repository's history.
