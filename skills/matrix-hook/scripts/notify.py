@@ -65,7 +65,6 @@ def dm_room(token):
             "is_direct": True,
             "invite": [to],
             "preset": "trusted_private_chat",
-            "name": "Claude Code",
         })["room_id"]
         direct.setdefault(to, []).append(room_id)
         api(token, "PUT", "/user/%s/account_data/m.direct" % q(me), direct)
