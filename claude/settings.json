@@ -98,7 +98,7 @@
   "hooks": {
     "Notification": [
       {
-        "matcher": "permission_prompt|elicitation_dialog",
+        "matcher": "elicitation_dialog",
         "hooks": [
           {
             "type": "command",
@@ -114,7 +114,18 @@
           {
             "type": "command",
             "command": "python3 ~/.claude/skills/matrix-hook/scripts/notify.py",
-            "timeout": 15
+            "timeout": 200
+          }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ~/.claude/skills/matrix-hook/scripts/notify.py",
+            "timeout": 200
           }
         ]
       }

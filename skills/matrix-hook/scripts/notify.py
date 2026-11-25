@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 """Claude Code hook: send a Matrix DM when Claude is blocked or done.
 
-Reads the hook JSON from stdin. Never fails the hook - errors go to stderr, exit 0.
+For PermissionRequest and Stop it then waits for the target's reply and answers the hook
+with it. Reads the hook JSON from stdin. Never fails the hook - errors go to stderr, exit 0.
 """
 import json
 import os
 import socket
 import sys
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -17,16 +19,19 @@ TOKEN_FILE = os.path.expanduser(os.environ.get("MATRIX_TOKEN_FILE", "~/.config/m
 TO_LOCALPART = os.environ.get("MATRIX_TO", "admin")
 CACHE_FILE = os.path.expanduser("~/.cache/claude-matrix-hook.json")
 MAX_LEN = 600
+WAIT = int(os.environ.get("MATRIX_WAIT", "180"))
+ALLOW = {"y", "yes", "a", "ano", "ok"}
+DENY = {"n", "no", "ne"}
 
 
-def api(token, method, path, body=None):
+def api(token, method, path, body=None, timeout=5):
     req = urllib.request.Request(
         HOMESERVER + "/_matrix/client/v3" + path,
         method=method,
         data=json.dumps(body).encode() if body is not None else None,
         headers={"Authorization": "Bearer " + token, "Content-Type": "application/json"},
     )
-    with urllib.request.urlopen(req, timeout=5) as r:
+    with urllib.request.urlopen(req, timeout=timeout) as r:
         return json.load(r)
 
 
@@ -79,13 +84,15 @@ def build_message(ev):
     name = ev.get("hook_event_name", "")
     project = os.path.basename(ev.get("cwd") or os.getcwd())
     where = "[%s @ %s]" % (project, socket.gethostname().split(".")[0])
-    if name == "Notification":
+    if name == "PermissionRequest":
+        inp = ev.get("tool_input") or {}
+        detail = inp.get("command") or inp.get("file_path") or inp.get("url") or json.dumps(inp)
+        text = "🔐 %s %s: %s" % (where, ev.get("tool_name", "tool"), detail)
+    elif name == "Notification":
         kind = ev.get("notification_type", "")
         icon = "🔐" if kind == "permission_prompt" else "⏸️"
         text = "%s %s %s" % (icon, where, ev.get("message", "Claude needs your attention"))
     elif name == "Stop":
-        if ev.get("stop_hook_active"):
-            return None
         last = (ev.get("last_assistant_message") or "").strip()
         text = "✅ %s Task done" % where
         if last:
@@ -96,6 +103,7 @@ def build_message(ev):
 
 
 def send(token, text):
+    """Send text, return the room id."""
     room = dm_room(token)
     path = "/rooms/%s/send/m.room.message/%s" % (q(room), uuid.uuid4().hex)
     try:
@@ -108,6 +116,44 @@ def send(token, text):
         room = dm_room(token)
         api(token, "PUT", "/rooms/%s/send/m.room.message/%s" % (q(room), uuid.uuid4().hex),
             {"msgtype": "m.text", "body": text})
+    return room
+
+
+def sync(token, room, since=None, timeout_ms=0):
+    filt = json.dumps({"room": {"rooms": [room], "timeline": {"limit": 50 if since else 0}},
+                       "presence": {"not_types": ["*"]}, "account_data": {"not_types": ["*"]}})
+    path = "/sync?timeout=%d&filter=%s" % (timeout_ms, q(filt))
+    if since:
+        path += "&since=" + q(since)
+    return api(token, "GET", path, timeout=timeout_ms / 1000 + 10)
+
+
+def wait_reply(token, room, since, sender):
+    """First text message from sender after `since`, or None after WAIT seconds."""
+    deadline = time.time() + WAIT
+    while (left := deadline - time.time()) > 0:
+        r = sync(token, room, since, int(min(left, 30) * 1000))
+        since = r["next_batch"]
+        timeline = r.get("rooms", {}).get("join", {}).get(room, {}).get("timeline", {})
+        for e in timeline.get("events", []):
+            body = (e.get("content") or {}).get("body", "").strip()
+            if e.get("type") == "m.room.message" and e.get("sender") == sender and body:
+                return body
+    return None
+
+
+def decide(name, reply):
+    if name == "Stop":
+        return {"decision": "block", "reason": "Reply from the user via Matrix: " + reply}
+    word, _, rest = reply.partition(" ")
+    word = word.lower().rstrip(".!,")
+    if word in ALLOW:
+        decision = {"behavior": "allow"}
+    else:
+        # anything that is not a plain yes is a deny; free text is passed to Claude as the reason
+        msg = rest.strip() if word in DENY else reply
+        decision = {"behavior": "deny", "message": msg or "Denied by the user via Matrix"}
+    return {"hookSpecificOutput": {"hookEventName": "PermissionRequest", "decision": decision}}
 
 
 def main():
@@ -118,9 +164,21 @@ def main():
         return
     raw = sys.stdin.read() if not sys.stdin.isatty() else ""
     ev = json.loads(raw) if raw.strip() else {"hook_event_name": "Test", "cwd": os.getcwd()}
+    name = ev.get("hook_event_name")
     text = build_message(ev)
-    if text:
+    if name not in ("PermissionRequest", "Stop"):
         send(token, text)
+        return
+    hint = "y / n [reason]" if name == "PermissionRequest" else "a reply continues the session"
+    # ❓ up front marks messages that wait for an answer; the rest are info only
+    text = "❓ %s\n\n↩️ Reply: %s (%d min)" % (text, hint, WAIT // 60)
+    sender = target_mxid(token)[0]
+    # take the sync position before sending so older messages are never read as the answer
+    since = sync(token, dm_room(token))["next_batch"]
+    room = send(token, text)
+    reply = wait_reply(token, room, since, sender)
+    if reply:
+        print(json.dumps(decide(name, reply)))
 
 
 if __name__ == "__main__":
